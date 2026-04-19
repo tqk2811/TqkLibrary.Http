@@ -84,14 +84,21 @@ namespace TqkLibrary.Http.HttpClientHandles
                         };
                         if (item.Path.HasValue)
                             newCookie.Path = item.Path.Value;
-                        if (item.Domain.HasValue)
+                        if (item.Domain.HasValue && DomainMatches(request.RequestUri.Host, item.Domain.Value))
                             newCookie.Domain = item.Domain.Value;
                         if (item.MaxAge.HasValue)
                             newCookie.Expires = DateTime.UtcNow.Add(item.MaxAge.Value);
                         else if (item.Expires.HasValue)
                             newCookie.Expires = item.Expires.Value.UtcDateTime;
 
-                        CookieContainer.Add(request.RequestUri, newCookie);
+                        try
+                        {
+                            CookieContainer.Add(request.RequestUri, newCookie);
+                        }
+                        catch (CookieException)
+                        {
+                            // malformed cookie: ignore (matches browser behaviour)
+                        }
                     }
                 }
                 finally
@@ -103,6 +110,15 @@ namespace TqkLibrary.Http.HttpClientHandles
             }
 
             return response;
+        }
+
+        static bool DomainMatches(string host, string domain)
+        {
+            if (string.IsNullOrEmpty(domain)) return false;
+            string d = domain[0] == '.' ? domain.Substring(1) : domain;
+            if (d.Length == 0) return false;
+            return host.Equals(d, StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
