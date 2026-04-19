@@ -75,8 +75,23 @@ namespace TqkLibrary.Http.HttpClientHandles
                 {
                     foreach (var item in SetCookieHeaderValue.ParseList(newCookies.ToList()))
                     {
-                        var uri = new Uri(request.RequestUri, item.Path.Value);
-                        CookieContainer.Add(uri, new Cookie(item.Name.Value, item.Value.Value, item.Path.Value));
+                        var newCookie = new Cookie(
+                            item.Name.Value,
+                            item.Value.HasValue ? item.Value.Value : string.Empty)
+                        {
+                            Secure = item.Secure,
+                            HttpOnly = item.HttpOnly,
+                        };
+                        if (item.Path.HasValue)
+                            newCookie.Path = item.Path.Value;
+                        if (item.Domain.HasValue)
+                            newCookie.Domain = item.Domain.Value;
+                        if (item.MaxAge.HasValue)
+                            newCookie.Expires = DateTime.UtcNow.Add(item.MaxAge.Value);
+                        else if (item.Expires.HasValue)
+                            newCookie.Expires = item.Expires.Value.UtcDateTime;
+
+                        CookieContainer.Add(request.RequestUri, newCookie);
                     }
                 }
                 finally
