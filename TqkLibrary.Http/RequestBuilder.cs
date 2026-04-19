@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace TqkLibrary.Http
         internal RequestBuilder(BaseApi baseApi)
         {
             this._baseApi = baseApi;
-            this._httpClient = baseApi.httpClient;
+            this._httpClient = baseApi._httpClient;
         }
         HttpClient _httpClient { get; }
         HttpContent? _httpContent = null;
@@ -188,7 +189,9 @@ namespace TqkLibrary.Http
         public RequestBuilder WithJsonBody(object obj, Encoding encoding)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
-            this._httpContent = new StringContent(JsonConvert.SerializeObject(obj, _baseApi.DefaultJsonSerializerSettings), encoding, "application/json");
+            string json = JsonConvert.SerializeObject(obj, _baseApi.DefaultJsonSerializerSettings);
+            this._baseApi._logger?.LogTrace($"{nameof(WithJsonBody)}: {{json}}",json);
+            this._httpContent = new StringContent(json, encoding, "application/json");
             this._httpContentDispose = true;
             return this;
         }
@@ -255,7 +258,11 @@ sec-ch-ua-form-factors:
 
             using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(_method, uri);
 
-            foreach (var header in _headers) httpRequestMessage.Headers.Add(header.Key, header.Value);
+            foreach (var header in _headers)
+            {
+                this._baseApi._logger?.LogTrace("Header: {key}: {value}", header.Key, header.Value);
+                httpRequestMessage.Headers.Add(header.Key, header.Value);
+            }
 
             if (httpRequestMessage.Headers.Accept.Count == 0 && _httpClient.DefaultRequestHeaders.Accept.Count == 0)
                 httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -267,7 +274,13 @@ sec-ch-ua-form-factors:
                 httpRequestMessage.Content = _httpContent;
             await _baseApi.OnBeforeRequestAsync(httpRequestMessage);
 
-            HttpResponseMessage httpResponseMessage = await _httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            HttpResponseMessage httpResponseMessage = await _httpClient
+                .SendAsync(
+                    httpRequestMessage, 
+                    HttpCompletionOption.ResponseHeadersRead, 
+                    cancellationToken
+                    )
+                .ConfigureAwait(false);
 
             if (_httpContentDispose) _httpContent?.Dispose();
 
@@ -275,10 +288,10 @@ sec-ch-ua-form-factors:
 
             return httpResponseMessage;
         }
-        bool isCheckStatusCode = true;
+        bool _isCheckStatusCode = true;
         public RequestBuilder WithCheckStatusCode(bool isCheck)
         {
-            isCheckStatusCode = isCheck;
+            _isCheckStatusCode = isCheck;
             return this;
         }
 
@@ -298,7 +311,7 @@ sec-ch-ua-form-factors:
             where TException : class
         {
             HttpResponseMessage rep = await ExecuteAsync(cancellationToken);
-            if (!isCheckStatusCode || rep.IsSuccessStatusCode)
+            if (!_isCheckStatusCode || rep.IsSuccessStatusCode)
             {
                 if (typeof(TResult).Equals(typeBuffer))
                 {
@@ -333,7 +346,7 @@ sec-ch-ua-form-factors:
 #endif
                         .ConfigureAwait(false);
 
-                if (!isCheckStatusCode || rep.IsSuccessStatusCode)
+                if (!_isCheckStatusCode || rep.IsSuccessStatusCode)
                 {
                     if (typeof(TResult).Equals(typeString))
                     {

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Net;
 using System.Net.Http;
@@ -10,15 +11,18 @@ namespace TqkLibrary.Http
     /// </summary>
     public abstract class BaseApi : IDisposable
     {
+        internal protected ILogger? _logger;
         /// <summary>
         /// 
         /// </summary>
         public readonly string? ApiKey;
 
+        [Obsolete("use _httpClient instead")]
+        internal protected readonly HttpClient httpClient;
         /// <summary>
         /// 
         /// </summary>
-        internal protected readonly HttpClient httpClient;
+        internal protected readonly HttpClient _httpClient;
 
         /// <summary>
         /// 
@@ -29,7 +33,8 @@ namespace TqkLibrary.Http
         /// </summary>
         protected BaseApi()
         {
-            this.httpClient = new HttpClient(NetSingleton.HttpClientHandler, false);
+            this._httpClient = new HttpClient(NetSingleton.HttpClientHandler, false);
+            this.httpClient = this._httpClient;
         }
         /// <summary>
         /// 
@@ -51,7 +56,8 @@ namespace TqkLibrary.Http
         protected BaseApi(string apiKey, HttpMessageHandler httpMessageHandler, bool disposeHandler = false)
         {
             if (string.IsNullOrWhiteSpace(apiKey)) throw new ArgumentNullException(nameof(apiKey));
-            this.httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
+            this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
+            this.httpClient = this._httpClient;
             this.ApiKey = apiKey;
         }
         /// <summary>
@@ -62,17 +68,20 @@ namespace TqkLibrary.Http
         /// <exception cref="ArgumentNullException"></exception>
         protected BaseApi(HttpMessageHandler httpMessageHandler, bool disposeHandler = false)
         {
-            this.httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
+            this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
+            this.httpClient = this._httpClient;
         }
 
         protected BaseApi(string apiKey, HttpClient httpClient)
         {
             this.ApiKey = apiKey;
-            this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            this.httpClient = this._httpClient;
         }
         protected BaseApi(HttpClient httpClient)
         {
-            this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            this.httpClient = this._httpClient;
         }
 
         /// <summary>
@@ -94,7 +103,7 @@ namespace TqkLibrary.Http
 
         protected virtual void Dispose(bool disposing)
         {
-            httpClient.Dispose();
+            _httpClient.Dispose();
         }
 
 
