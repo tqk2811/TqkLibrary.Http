@@ -1,6 +1,4 @@
-﻿using Microsoft.Net.Http.Headers;
-using System;
-using System.Linq;
+﻿using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -73,27 +71,14 @@ namespace TqkLibrary.Http.HttpClientHandles
                 await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    foreach (var item in SetCookieHeaderValue.ParseList(newCookies.ToList()))
+                    foreach (var cookieHeader in newCookies)
                     {
-                        var newCookie = new Cookie(
-                            item.Name.Value,
-                            item.Value.HasValue ? item.Value.Value : string.Empty)
-                        {
-                            Secure = item.Secure,
-                            HttpOnly = item.HttpOnly,
-                        };
-                        if (item.Path.HasValue)
-                            newCookie.Path = item.Path.Value;
-                        if (item.Domain.HasValue && DomainMatches(request.RequestUri.Host, item.Domain.Value))
-                            newCookie.Domain = item.Domain.Value;
-                        if (item.MaxAge.HasValue)
-                            newCookie.Expires = DateTime.UtcNow.Add(item.MaxAge.Value);
-                        else if (item.Expires.HasValue)
-                            newCookie.Expires = item.Expires.Value.UtcDateTime;
-
                         try
                         {
-                            CookieContainer.Add(request.RequestUri, newCookie);
+                            // Dùng CookieContainer.SetCookies (native RFC 6265 parser của .NET) thay cho
+                            // SetCookieHeaderValue parse thủ công — tránh edge case không tương thích với
+                            // behavior mặc định của SocketsHttpHandler khi UseCookies=true.
+                            CookieContainer.SetCookies(request.RequestUri, cookieHeader);
                         }
                         catch (CookieException)
                         {
@@ -110,15 +95,6 @@ namespace TqkLibrary.Http.HttpClientHandles
             }
 
             return response;
-        }
-
-        static bool DomainMatches(string host, string domain)
-        {
-            if (string.IsNullOrEmpty(domain)) return false;
-            string d = domain[0] == '.' ? domain.Substring(1) : domain;
-            if (d.Length == 0) return false;
-            return host.Equals(d, StringComparison.OrdinalIgnoreCase)
-                || host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
