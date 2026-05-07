@@ -19,7 +19,7 @@ namespace TqkLibrary.Http.Api.Phone
         /// <param name="apiKey"></param>
         public FiveSimNetApi(string apiKey) : base(apiKey)
         {
-            httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
         }
 
         /// <summary>

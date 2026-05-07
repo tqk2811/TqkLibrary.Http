@@ -26,7 +26,7 @@ namespace TqkLibrary.Http.Api.Proxy.Services
         {
             if (string.IsNullOrWhiteSpace(endPoint)) throw new ArgumentNullException(nameof(endPoint));
             this.EndPoint = endPoint;
-            this.httpClient.BaseAddress = new Uri(endPoint);
+            this._httpClient.BaseAddress = new Uri(endPoint);
         }
 
         /// <summary>

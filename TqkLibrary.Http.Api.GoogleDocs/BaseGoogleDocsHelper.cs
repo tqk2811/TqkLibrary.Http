@@ -22,8 +22,8 @@ namespace TqkLibrary.Http.Api.GoogleDocs
         }
         public BaseGoogleDocsHelper(HttpMessageHandler httpMessageHandler) : this(new CookieHandler(httpMessageHandler))
         {
-            this.httpClient.DefaultRequestHeaders.Referrer = new Uri("https://docs.google.com");
-            this.httpClient.DefaultRequestHeaders.Add("Origin", "https://docs.google.com/");
+            this._httpClient.DefaultRequestHeaders.Referrer = new Uri("https://docs.google.com");
+            this._httpClient.DefaultRequestHeaders.Add("Origin", "https://docs.google.com/");
         }
 
         readonly CookieHandler _cookieHandler;

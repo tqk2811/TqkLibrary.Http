@@ -17,7 +17,7 @@ namespace TqkLibrary.Http.Api.Proxy.Services
         }
         public ZingproxyComApi(string accessToken, HttpMessageHandler httpMessageHandler, bool disposeHandler = false) : base(accessToken, httpMessageHandler, disposeHandler)
         {
-            this.httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            this._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             this.DanCuVietNam = new(this);
         }
 
