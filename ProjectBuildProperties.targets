@@ -18,7 +18,7 @@
 	<!-- Set version after GitVersion runs -->
 	<Target Name="SetVersionFromGitVersion" AfterTargets="GetVersion">
 		<PropertyGroup>
-			<Version>$(GitVersion_MajorMinorPatch).$(GitVersion_CommitsSinceVersionSource)</Version>
+			<Version>$(GitVersion_Major).$(GitVersion_Minor).$(GitVersion_CommitsSinceVersionSource)</Version>
 			<PackageVersion>$(Version)</PackageVersion>
 		</PropertyGroup>
 		<PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)\$(MSBuildProjectName).nuspec')">

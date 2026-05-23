@@ -1,5 +1,6 @@
 mode: ManualDeployment
 tag-prefix: 'v'
+next-version: '1.0'
 assembly-versioning-scheme: MajorMinorPatchTag
 branches:
   master:
