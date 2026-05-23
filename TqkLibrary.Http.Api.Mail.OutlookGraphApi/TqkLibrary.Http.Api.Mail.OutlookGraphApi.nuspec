@@ -12,12 +12,12 @@
 		<readme>docs\README.MD</readme>
 		<dependencies>
 			<group targetFramework="netstandard2.0">
-				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.2.4"/>
+				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.20"/>
 				<dependency id="Microsoft.Graph" version="5.82.0" />
 				<dependency id="Microsoft.Identity.Client" version="4.73.0" />
 			</group>
 			<group targetFramework="net8.0">
-				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.2.4"/>
+				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.20"/>
 				<dependency id="Microsoft.Graph" version="5.82.0" />
 				<dependency id="Microsoft.Identity.Client" version="4.73.0" />
 				
