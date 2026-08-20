@@ -30,6 +30,7 @@ namespace TqkLibrary.Http
         Dictionary<string, string> _headers = new Dictionary<string, string>();
         HttpMethod? _method = null;
         Uri? _uri = null;
+        Uri? _resolvedUri = null;
 
         /// <summary>
         /// 
@@ -256,6 +257,10 @@ sec-ch-ua-form-factors:
                     throw new UriFormatException($"Cannot combine BaseAddress '{_httpClient.BaseAddress}' with relative URI '{_uri}'.");
             }
 
+            // Keep the uri already combined with BaseAddress so ApiException still has the real address
+            // when HttpResponseMessage.RequestMessage is null.
+            _resolvedUri = uri;
+
             using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(_method, uri);
 
             foreach (var header in _headers)
@@ -276,8 +281,8 @@ sec-ch-ua-form-factors:
 
             HttpResponseMessage httpResponseMessage = await _httpClient
                 .SendAsync(
-                    httpRequestMessage, 
-                    HttpCompletionOption.ResponseHeadersRead, 
+                    httpRequestMessage,
+                    _completionOption,
                     cancellationToken
                     )
                 .ConfigureAwait(false);
@@ -292,6 +297,18 @@ sec-ch-ua-form-factors:
         public RequestBuilder WithCheckStatusCode(bool isCheck)
         {
             _isCheckStatusCode = isCheck;
+            return this;
+        }
+
+        // Buffer the whole body inside SendAsync by default so HttpClient.Timeout also covers the download.
+        // This used to be hardcoded to ResponseHeadersRead: SendAsync returned as soon as the headers arrived
+        // and no timeout protected the body read afterwards -> a half-open connection (a proxy or the network
+        // dying midway) made a tokenless ReadAsStringAsync() hang forever.
+        // Streaming (large downloads, partial reads) is opt-in through WithCompletionOption.
+        HttpCompletionOption _completionOption = HttpCompletionOption.ResponseContentRead;
+        public RequestBuilder WithCompletionOption(HttpCompletionOption completionOption)
+        {
+            _completionOption = completionOption;
             return this;
         }
 
@@ -310,6 +327,10 @@ sec-ch-ua-form-factors:
             where TResult : class
             where TException : class
         {
+            // Handing the stream to the caller requires ResponseHeadersRead: do not buffer it first.
+            if (typeof(TResult).Equals(typeStream))
+                _completionOption = HttpCompletionOption.ResponseHeadersRead;
+
             HttpResponseMessage rep = await ExecuteAsync(cancellationToken);
             if (!_isCheckStatusCode || rep.IsSuccessStatusCode)
             {
@@ -336,6 +357,9 @@ sec-ch-ua-form-factors:
             }
 
 
+            // Kept so the ApiException can tell "server returned an error" apart from
+            // "server returned 2xx but the body did not match TResult".
+            Exception? deserializeError = null;
             try
             {
                 string? content_res = await rep.Content
@@ -358,31 +382,62 @@ sec-ch-ua-form-factors:
                         {
                             return JsonConvert.DeserializeObject<TResult>(content_res, _baseApi.DefaultJsonSerializerSettings)!;
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            //jump to error
+                            //jump to error, keeping the reason to attach to the ApiException
+                            deserializeError = ex;
                         }
                     }
                 }
 
-                if (typeof(TException).Equals(typeString))
-                {
-                    throw new ApiException<string>()
-                    {
-                        Body = content_res,
-                        StatusCode = rep.StatusCode
-                    };
-                }
-                else throw new ApiException<TException>()
-                {
-                    Body = JsonConvert.DeserializeObject<TException>(content_res)!,
-                    StatusCode = rep.StatusCode
-                };
+                throw CreateApiException<TException>(rep, content_res, deserializeError);
             }
             finally
             {
                 rep.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Builds the <see cref="ApiException"/> for a failed call, with every piece of context the response
+        /// still holds. Must run before the response is disposed.
+        /// </summary>
+        ApiException CreateApiException<TException>(HttpResponseMessage rep, string? content, Exception? deserializeError)
+            where TException : class
+        {
+            ApiErrorKind kind = deserializeError is null ? ApiErrorKind.HttpStatus : ApiErrorKind.DeserializeFailed;
+            Uri? requestUri = rep.RequestMessage?.RequestUri ?? _resolvedUri ?? _uri;
+
+            if (typeof(TException).Equals(typeString))
+            {
+                return new ApiException<string>(rep, content, content, deserializeError)
+                {
+                    Kind = kind,
+                    RequestMethod = _method,
+                    RequestUri = requestUri,
+                };
+            }
+
+            TException? body = null;
+            Exception? innerException = deserializeError;
+            try
+            {
+                body = JsonConvert.DeserializeObject<TException>(content!, _baseApi.DefaultJsonSerializerSettings);
+            }
+            catch (Exception ex)
+            {
+                // An error body that is not JSON (an HTML error page, a proxy notice) must NOT leak a raw
+                // JsonReaderException: callers catching ApiException would miss it and the stack trace would
+                // point at the wrong place. Keep it as InnerException, RawBody still carries the evidence.
+                innerException ??= ex;
+            }
+
+            return new ApiException<TException>(rep, content, body, innerException)
+            {
+                Kind = kind,
+                RequestMethod = _method,
+                RequestUri = requestUri,
+            };
         }
 
         /// <summary>
