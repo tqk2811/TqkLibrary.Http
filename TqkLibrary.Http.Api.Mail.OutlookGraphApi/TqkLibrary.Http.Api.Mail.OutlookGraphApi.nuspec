@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
 	<!--https://docs.microsoft.com/en-us/nuget/reference/nuspec-->
 	<metadata>
@@ -12,12 +12,12 @@
 		<readme>docs\README.MD</readme>
 		<dependencies>
 			<group targetFramework="netstandard2.0">
-				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.20"/>
+				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.26"/>
 				<dependency id="Microsoft.Graph" version="5.82.0" />
 				<dependency id="Microsoft.Identity.Client" version="4.73.0" />
 			</group>
 			<group targetFramework="net8.0">
-				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.20"/>
+				<dependency id="TqkLibrary.Http.Api.Mail" version="1.1.26"/>
 				<dependency id="Microsoft.Graph" version="5.82.0" />
 				<dependency id="Microsoft.Identity.Client" version="4.73.0" />
 				

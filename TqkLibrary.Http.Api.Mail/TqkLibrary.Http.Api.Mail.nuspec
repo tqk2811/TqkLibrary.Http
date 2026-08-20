@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
 	<!--https://docs.microsoft.com/en-us/nuget/reference/nuspec-->
 	<metadata>
@@ -12,14 +12,14 @@
 		<readme>docs\README.MD</readme>
 		<dependencies>
 			<group targetFramework="netstandard2.0">
-				<dependency id="TqkLibrary.Http" version="1.1.20"/>
-				<dependency id="TqkLibrary.Http.Api.Proxy" version="1.1.20"/>
+				<dependency id="TqkLibrary.Http" version="1.1.26"/>
+				<dependency id="TqkLibrary.Http.Api.Proxy" version="1.1.26"/>
 				<dependency id="MailKit" version="4.11.0" />
 				<dependency id="Nito.AsyncEx" version="5.1.2"/>
 			</group>
 			<group targetFramework="net8.0">
-				<dependency id="TqkLibrary.Http" version="1.1.20"/>
-				<dependency id="TqkLibrary.Http.Api.Proxy" version="1.1.20"/>
+				<dependency id="TqkLibrary.Http" version="1.1.26"/>
+				<dependency id="TqkLibrary.Http.Api.Proxy" version="1.1.26"/>
 				<dependency id="MailKit" version="4.11.0" />
 				<dependency id="Nito.AsyncEx" version="5.1.2"/>
 			</group>
