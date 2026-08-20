@@ -230,11 +230,7 @@ namespace TqkLibrary.Http.Api.CloudStorage.Dropbox
             else
             {
                 string content = await httpResponseMessage.Content.ReadAsStringAsync();
-                throw new ApiException<string>()
-                {
-                    StatusCode = httpResponseMessage.StatusCode,
-                    Body = content,
-                };
+                throw new ApiException<string>(httpResponseMessage, content, content);
             }
         }
     }
