@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+
+	<!-- Phiên bản của MỌI package khai ở đây; csproj chỉ khai <PackageReference Include="..."/> không
+	     kèm Version (kèm là lỗi NU1008). Lý do dồn về một chỗ: TqkLibrary.Http là nền của 12 project
+	     còn lại, nên nâng phiên bản lẻ ở một project là các project khác thấy downgrade — NU1605, mà
+	     repo này bật warning-as-error, tức cả solution không build được. -->
+
+	<ItemGroup Label="Build">
+		<PackageVersion Include="GitVersion.MsBuild" Version="6.8.2" />
+		<PackageVersion Include="TqkLibrary.CompilerServices" Version="1.0.0.3" />
+	</ItemGroup>
+
+	<ItemGroup Label="TqkLibrary.Http">
+		<PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
+		<PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+		<PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageVersion Include="System.Net.Http" Version="4.3.4" />
+		<PackageVersion Include="TqkLibrary.Utils" Version="1.0.0" />
+		<!-- Bản cho net8.0. netstandard2.0 cần nhánh 2.x nên chỗ đó dùng VersionOverride trong
+		     TqkLibrary.Http.csproj — CPM chỉ cho MỘT PackageVersion cho mỗi package id. -->
+		<PackageVersion Include="Microsoft.Net.Http.Headers" Version="8.0.31" />
+	</ItemGroup>
+
+	<ItemGroup Label="Api">
+		<PackageVersion Include="Google.Apis.Drive.v2" Version="1.69.0.3699" />
+		<PackageVersion Include="MailKit" Version="4.11.0" />
+		<PackageVersion Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageVersion Include="Microsoft.Graph" Version="5.82.0" />
+		<PackageVersion Include="Microsoft.Identity.Client" Version="4.73.0" />
+		<PackageVersion Include="Nito.AsyncEx" Version="5.1.2" />
+	</ItemGroup>
+
+	<ItemGroup Label="Test">
+		<PackageVersion Include="coverlet.collector" Version="3.2.0" />
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
+		<PackageVersion Include="MSTest.TestAdapter" Version="2.2.10" />
+		<PackageVersion Include="MSTest.TestFramework" Version="2.2.10" />
+	</ItemGroup>
+
+</Project>

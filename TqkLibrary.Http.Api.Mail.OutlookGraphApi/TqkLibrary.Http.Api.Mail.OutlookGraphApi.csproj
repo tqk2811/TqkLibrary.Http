@@ -3,8 +3,8 @@
 	<Import Project="..\ProjectBuildProperties.targets" />
 
 	<ItemGroup>
-	  <PackageReference Include="Microsoft.Graph" Version="5.82.0" />
-	  <PackageReference Include="Microsoft.Identity.Client" Version="4.73.0" />
+	  <PackageReference Include="Microsoft.Graph" />
+	  <PackageReference Include="Microsoft.Identity.Client" />
 	</ItemGroup>
 
 	<ItemGroup>
