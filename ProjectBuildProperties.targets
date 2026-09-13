@@ -27,11 +27,15 @@
 	</Target>
 
 	<ItemGroup>
-		<PackageReference Include="GitVersion.MsBuild" Version="6.7.0">
+		<PackageReference Include="GitVersion.MsBuild" Version="6.8.2">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="TqkLibrary.CompilerServices" Version="1.0.0.2" />
+		<!-- Phải bump ở ĐÂY, đừng bump bằng PackageReference Update trong một csproj lẻ:
+		     TqkLibrary.CompilerServices chảy tiếp sang các project phụ thuộc, nên nâng riêng
+		     TqkLibrary.Http là mọi project khác thấy một downgrade (NU1605, mà repo này bật
+		     warning-as-error) và cả solution không build được. -->
+		<PackageReference Include="TqkLibrary.CompilerServices" Version="1.0.0.3" />
 	</ItemGroup>
 
 </Project>
