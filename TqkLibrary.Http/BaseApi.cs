@@ -29,8 +29,16 @@ namespace TqkLibrary.Http
         /// </summary>
         internal protected JsonSerializerSettings? DefaultJsonSerializerSettings { get; set; } = NetSingleton.JsonSerializerSettings;
         /// <summary>
-        /// 
+        /// Dùng handler chung của cả tiến trình (<see cref="NetSingleton.HttpClientHandler"/>).
         /// </summary>
+        /// <remarks>
+        /// Handler đó là MỘT instance cho cả tiến trình, nên mọi đối tượng dựng qua constructor này
+        /// chia nhau cùng một handler. <see cref="HttpClient"/> thì riêng từng đối tượng, nên
+        /// <c>DefaultRequestHeaders</c> (ví dụ bearer token) không rò sang đối tượng khác — nhưng
+        /// thứ gì nằm TRONG handler thì có. Cookie đã được tắt sẵn vì lý do đó. Cần cookie riêng
+        /// từng phiên thì dùng constructor nhận <see cref="HttpMessageHandler"/> và bọc
+        /// <see cref="HttpClientHandles.CookieHandler"/>.
+        /// </remarks>
         protected BaseApi()
         {
             this._httpClient = new HttpClient(NetSingleton.HttpClientHandler, false);
