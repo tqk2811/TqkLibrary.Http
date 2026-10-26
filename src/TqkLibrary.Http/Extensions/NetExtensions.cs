@@ -6,7 +6,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace TqkLibrary.Http
+namespace TqkLibrary.Http.Extensions
 {
     /// <summary>
     /// 
