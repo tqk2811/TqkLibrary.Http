@@ -13,11 +13,6 @@ namespace TqkLibrary.Http.HttpClientHandles
     public class CookieHandler : DelegatingHandler
     {
         /// <summary>
-        /// 
-        /// </summary>
-        readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-
-        /// <summary>
         ///
         /// </summary>
         public CookieContainer CookieContainer { get; }
@@ -50,15 +45,6 @@ namespace TqkLibrary.Http.HttpClientHandles
         /// <param name="request"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _semaphore.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
         {
             string cookie = CookieContainer.GetCookieHeader(request.RequestUri);
@@ -68,27 +54,22 @@ namespace TqkLibrary.Http.HttpClientHandles
 
             if (response.Headers.TryGetValues("Set-Cookie", out var newCookies))
             {
-                await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                // Inner handler có thể đã tự theo redirect: cookie thuộc về URI cuối cùng, không phải URI gốc
+                Uri cookieUri = response.RequestMessage?.RequestUri ?? request.RequestUri!;
+                // CookieContainer tự thread-safe nên không cần khoá; khoá cũ còn làm rò response khi bị huỷ lúc chờ
+                foreach (var cookieHeader in newCookies)
                 {
-                    foreach (var cookieHeader in newCookies)
+                    try
                     {
-                        try
-                        {
-                            // Dùng CookieContainer.SetCookies (native RFC 6265 parser của .NET) thay cho
-                            // SetCookieHeaderValue parse thủ công — tránh edge case không tương thích với
-                            // behavior mặc định của SocketsHttpHandler khi UseCookies=true.
-                            CookieContainer.SetCookies(request.RequestUri, cookieHeader);
-                        }
-                        catch (CookieException)
-                        {
-                            // malformed cookie: ignore (matches browser behaviour)
-                        }
+                        // Dùng CookieContainer.SetCookies (native RFC 6265 parser của .NET) thay cho
+                        // SetCookieHeaderValue parse thủ công — tránh edge case không tương thích với
+                        // behavior mặc định của SocketsHttpHandler khi UseCookies=true.
+                        CookieContainer.SetCookies(cookieUri, cookieHeader);
                     }
-                }
-                finally
-                {
-                    _semaphore.Release();
+                    catch (CookieException)
+                    {
+                        // malformed cookie: ignore (matches browser behaviour)
+                    }
                 }
 
                 ThreadPool.QueueUserWorkItem(_ => CookieChanged?.Invoke(this, CookieContainer));

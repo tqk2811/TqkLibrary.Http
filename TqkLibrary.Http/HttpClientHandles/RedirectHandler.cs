@@ -10,6 +10,8 @@ namespace TqkLibrary.Http.HttpClientHandles
     /// Follows 3xx redirects by issuing new requests through base.SendAsync.
     /// Place this OUTSIDE of <see cref="CookieHandler"/> so each redirect hop re-applies cookies
     /// from and captures Set-Cookie into the cookie container.
+    /// The inner handler must have AllowAutoRedirect = false, otherwise it follows redirects itself
+    /// and this handler never sees a 3xx response.
     /// </summary>
     public class RedirectHandler : DelegatingHandler
     {
@@ -40,14 +42,20 @@ namespace TqkLibrary.Http.HttpClientHandles
                 if (response.Headers.Location is null)
                     return response;
 
-                HttpRequestMessage nextRequest;
+                // Same rules as browsers / SocketsHttpHandler:
+                //  - 301/302: only POST becomes GET (body dropped), other methods are kept.
+                //  - 303: everything except HEAD becomes GET.
+                //  - 307/308: keep method and body.
+                bool keepMethod;
                 switch (response.StatusCode)
                 {
                     case HttpStatusCode.Moved: // 301
                     case HttpStatusCode.Redirect: // 302
+                        keepMethod = currentRequest.Method != HttpMethod.Post;
+                        break;
+
                     case HttpStatusCode.RedirectMethod: // 303
-                        nextRequest = new HttpRequestMessage(HttpMethod.Get, ResolveLocation(currentRequest.RequestUri, response.Headers.Location));
-                        CopyHeaders(currentRequest, nextRequest);
+                        keepMethod = currentRequest.Method == HttpMethod.Head;
                         break;
 
                     case HttpStatusCode.RedirectKeepVerb: // 307
@@ -56,21 +64,30 @@ namespace TqkLibrary.Http.HttpClientHandles
 #else
                     case (HttpStatusCode)308:
 #endif
-                        nextRequest = new HttpRequestMessage(currentRequest.Method, ResolveLocation(currentRequest.RequestUri, response.Headers.Location));
-                        CopyHeaders(currentRequest, nextRequest);
-                        if (currentRequest.Content != null)
-                            nextRequest.Content = currentRequest.Content;
+                        keepMethod = true;
                         break;
 
                     default:
                         return response;
                 }
 
-                redirectCount++;
-                if (redirectCount >= MaxRedirectCount)
-                {
-                    nextRequest.Dispose();
+                Uri nextUri = ResolveLocation(currentRequest.RequestUri, response.Headers.Location);
+                // Do not downgrade https -> http: headers would travel over an unencrypted channel
+                if (currentRequest.RequestUri?.Scheme == Uri.UriSchemeHttps && nextUri.Scheme != Uri.UriSchemeHttps)
                     return response;
+
+                redirectCount++;
+                if (redirectCount > MaxRedirectCount)
+                    return response;
+
+                HttpRequestMessage nextRequest = new HttpRequestMessage(keepMethod ? currentRequest.Method : HttpMethod.Get, nextUri);
+                CopyHeaders(currentRequest, nextRequest);
+                if (keepMethod && currentRequest.Content != null)
+                {
+                    // Move the body to the next hop so disposing the previous hop does not dispose it
+                    nextRequest.Content = currentRequest.Content;
+                    if (!ReferenceEquals(currentRequest, request))
+                        currentRequest.Content = null;
                 }
 
                 response.Dispose();

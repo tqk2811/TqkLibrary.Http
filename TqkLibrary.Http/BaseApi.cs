@@ -95,13 +95,6 @@ namespace TqkLibrary.Http
         /// <summary>
         /// 
         /// </summary>
-        ~BaseApi()
-        {
-            Dispose(false);
-        }
-        /// <summary>
-        /// 
-        /// </summary>
         /// <exception cref="NotImplementedException"></exception>
         public void Dispose()
         {
@@ -111,7 +104,8 @@ namespace TqkLibrary.Http
 
         protected virtual void Dispose(bool disposing)
         {
-            _httpClient.Dispose();
+            if (disposing)
+                _httpClient.Dispose();
         }
 
 

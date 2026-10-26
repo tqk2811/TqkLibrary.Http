@@ -26,8 +26,16 @@ namespace TqkLibrary.Http
             handler.ConnectCallback = async (context, cancellationToken) =>
             {
                 Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                await socket.ConnectAsync(context.DnsEndPoint.Host, context.DnsEndPoint.Port);
-                return new NetworkStream(socket, true);
+                try
+                {
+                    await socket.ConnectAsync(context.DnsEndPoint.Host, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
             };
             return handler;
         }

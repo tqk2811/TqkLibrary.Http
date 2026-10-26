@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Linq;
 using System.Web;
 using System.Xml.Linq;
@@ -55,7 +57,19 @@ namespace TqkLibrary.Http
         public virtual UrlBuilder WithParam(string name, object value)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
-            string? v = value?.ToString();
+            // List<int>, int[]... are not IEnumerable<object> so they land here instead of the collection overload
+            if (IsParamList(value, out IEnumerable? enumerable))
+            {
+                bool any = false;
+                foreach (object item in enumerable!)
+                {
+                    WithParam(name, item);
+                    any = true;
+                }
+                if (!any) throw new ArgumentNullException(nameof(value));
+                return this;
+            }
+            string? v = FormatValue(value);
             if (string.IsNullOrWhiteSpace(v)) throw new ArgumentNullException(nameof(value));
             _nameValueCollection.Add(name, v);
             return this;
@@ -71,7 +85,7 @@ namespace TqkLibrary.Http
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (values is null || !values.Any()) throw new ArgumentNullException(nameof(values));
-            foreach (object value in values) WithParam(name, value?.ToString()!);
+            foreach (object value in values) WithParam(name, value);
             return this;
         }
         /// <summary>
@@ -96,9 +110,13 @@ namespace TqkLibrary.Http
         public virtual UrlBuilder WithParamIfNotNull(string name, object? value)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
-            if (value != null)
+            if (IsParamList(value, out IEnumerable? enumerable))
             {
-                string? v = value.ToString();
+                foreach (object? item in enumerable!) WithParamIfNotNull(name, item);
+            }
+            else if (value != null)
+            {
+                string? v = FormatValue(value);
                 if (!string.IsNullOrWhiteSpace(v)) _nameValueCollection.Add(name, v);
             }
             return this;
@@ -114,7 +132,7 @@ namespace TqkLibrary.Http
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (values is null || !values.Any()) return this;
-            foreach (object? value in values) WithParamIfNotNull(name, value?.ToString());
+            foreach (object? value in values) WithParamIfNotNull(name, value);
             return this;
         }
         /// <summary>
@@ -161,7 +179,47 @@ namespace TqkLibrary.Http
         {
             string? query = _nameValueCollection.ToString();
             if (string.IsNullOrWhiteSpace(query)) return _url;
-            else return $"{_url}?{_nameValueCollection}";
+
+            // Giữ fragment ở cuối và nối tiếp query sẵn có trong url thay vì thêm '?' lần hai
+            string url = _url;
+            string fragment = string.Empty;
+            int hashIndex = url.IndexOf('#');
+            if (hashIndex >= 0)
+            {
+                fragment = url.Substring(hashIndex);
+                url = url.Substring(0, hashIndex);
+            }
+            char separator = url.IndexOf('?') < 0 ? '?' : (url.EndsWith("?") || url.EndsWith("&") ? '\0' : '&');
+            return separator == '\0' ? $"{url}{query}{fragment}" : $"{url}{separator}{query}{fragment}";
+        }
+
+        /// <summary>
+        /// Đổi giá trị sang chuỗi theo InvariantCulture để server đọc được bất kể culture của máy client
+        /// </summary>
+        static bool IsParamList(object? value, out IEnumerable? enumerable)
+        {
+            // Chỉ trải mảng/list giá trị; string, byte[], dictionary, JToken... giữ nguyên là một giá trị
+            if (value is ICollection collection && value is not byte[] && value is not IDictionary)
+            {
+                enumerable = collection;
+                return true;
+            }
+            enumerable = null;
+            return false;
+        }
+
+        static string? FormatValue(object? value)
+        {
+            switch (value)
+            {
+                case null: return null;
+                case string s: return s;
+                case bool b: return b ? "true" : "false";
+                case DateTime dateTime: return dateTime.ToString("O", CultureInfo.InvariantCulture);
+                case DateTimeOffset dateTimeOffset: return dateTimeOffset.ToString("O", CultureInfo.InvariantCulture);
+                case IFormattable formattable: return formattable.ToString(null, CultureInfo.InvariantCulture);
+                default: return value.ToString();
+            }
         }
 
         /// <summary>

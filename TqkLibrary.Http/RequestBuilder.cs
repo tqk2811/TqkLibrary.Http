@@ -27,7 +27,7 @@ namespace TqkLibrary.Http
         HttpContent? _httpContent = null;
         bool _httpContentDispose = true;
 
-        Dictionary<string, string> _headers = new Dictionary<string, string>();
+        Dictionary<string, string> _headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         HttpMethod? _method = null;
         Uri? _uri = null;
         Uri? _resolvedUri = null;
@@ -206,8 +206,8 @@ namespace TqkLibrary.Http
         public RequestBuilder WithHeader(string key, string value)
         {
             if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-            if (string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
-            _headers.Add(key, value);
+            if (value is null) throw new ArgumentNullException(nameof(value));
+            _headers[key] = value;
             return this;
         }
         public RequestBuilder ParseHeadersFromChrome(string headers)
@@ -234,7 +234,7 @@ sec-ch-ua-form-factors:
                 if (string.IsNullOrWhiteSpace(data))
                     throw new InvalidOperationException($"invalid data format");
 
-                _headers.Add(header!, data);
+                _headers[header!] = data!;
             }
             return this;
         }
@@ -244,7 +244,10 @@ sec-ch-ua-form-factors:
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task<HttpResponseMessage> ExecuteAsync(CancellationToken cancellationToken = default)
+        public Task<HttpResponseMessage> ExecuteAsync(CancellationToken cancellationToken = default)
+            => ExecuteAsync(_completionOption, cancellationToken);
+
+        async Task<HttpResponseMessage> ExecuteAsync(HttpCompletionOption completionOption, CancellationToken cancellationToken)
         {
             if (_method == null || _uri == null) throw new InvalidOperationException($"method or uri is null");
 
@@ -262,36 +265,54 @@ sec-ch-ua-form-factors:
             _resolvedUri = uri;
 
             using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(_method, uri);
-
-            foreach (var header in _headers)
+            try
             {
-                this._baseApi._logger?.LogTrace("Header: {key}: {value}", header.Key, header.Value);
-                httpRequestMessage.Headers.Add(header.Key, header.Value);
+                if (_httpContent != null)
+                    httpRequestMessage.Content = _httpContent;
+
+                foreach (var header in _headers)
+                {
+                    this._baseApi._logger?.LogTrace("Header: {key}: {value}", header.Key, header.Value);
+                    // Content-Type, Content-Length... belong to the content headers, not the request headers
+                    if (!httpRequestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value))
+                    {
+                        // Content-Type is usually already set by StringContent: replace it instead of adding a second value
+                        httpRequestMessage.Content?.Headers.Remove(header.Key);
+                        if (httpRequestMessage.Content is null || !httpRequestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value))
+                            throw new InvalidOperationException($"Cannot add header '{header.Key}' to the request.");
+                    }
+                }
+
+                if (httpRequestMessage.Headers.Accept.Count == 0 && _httpClient.DefaultRequestHeaders.Accept.Count == 0)
+                    httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                await _baseApi.OnBeforeRequestAsync(httpRequestMessage).ConfigureAwait(false);
+
+                HttpResponseMessage httpResponseMessage = await _httpClient
+                    .SendAsync(
+                        httpRequestMessage,
+                        completionOption,
+                        cancellationToken
+                        )
+                    .ConfigureAwait(false);
+
+                try
+                {
+                    await _baseApi.OnAfterRequestAsync(httpResponseMessage).ConfigureAwait(false);
+                }
+                catch
+                {
+                    httpResponseMessage.Dispose();
+                    throw;
+                }
+
+                return httpResponseMessage;
             }
-
-            if (httpRequestMessage.Headers.Accept.Count == 0 && _httpClient.DefaultRequestHeaders.Accept.Count == 0)
-                httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            if (string.IsNullOrWhiteSpace(httpRequestMessage.Headers.Host) && string.IsNullOrWhiteSpace(_httpClient.DefaultRequestHeaders.Host))
-                httpRequestMessage.Headers.Host = uri.Host;
-
-            if (_httpContent != null)
-                httpRequestMessage.Content = _httpContent;
-            await _baseApi.OnBeforeRequestAsync(httpRequestMessage);
-
-            HttpResponseMessage httpResponseMessage = await _httpClient
-                .SendAsync(
-                    httpRequestMessage,
-                    _completionOption,
-                    cancellationToken
-                    )
-                .ConfigureAwait(false);
-
-            if (_httpContentDispose) _httpContent?.Dispose();
-
-            await _baseApi.OnAfterRequestAsync(httpResponseMessage);
-
-            return httpResponseMessage;
+            finally
+            {
+                // Disposing HttpRequestMessage also disposes its Content: detach it when the caller keeps ownership
+                if (!_httpContentDispose) httpRequestMessage.Content = null;
+            }
         }
         bool _isCheckStatusCode = true;
         public RequestBuilder WithCheckStatusCode(bool isCheck)
@@ -328,10 +349,11 @@ sec-ch-ua-form-factors:
             where TException : class
         {
             // Handing the stream to the caller requires ResponseHeadersRead: do not buffer it first.
-            if (typeof(TResult).Equals(typeStream))
-                _completionOption = HttpCompletionOption.ResponseHeadersRead;
+            HttpCompletionOption completionOption = typeof(TResult).Equals(typeStream)
+                ? HttpCompletionOption.ResponseHeadersRead
+                : _completionOption;
 
-            HttpResponseMessage rep = await ExecuteAsync(cancellationToken);
+            HttpResponseMessage rep = await ExecuteAsync(completionOption, cancellationToken).ConfigureAwait(false);
             if (!_isCheckStatusCode || rep.IsSuccessStatusCode)
             {
                 if (typeof(TResult).Equals(typeBuffer))
@@ -339,9 +361,9 @@ sec-ch-ua-form-factors:
                     try
                     {
 #if NETFRAMEWORK || NETSTANDARD
-                        return ((await rep.Content.ReadAsByteArrayAsync()) as TResult)!;
+                        return ((await rep.Content.ReadAsByteArrayAsync().ConfigureAwait(false)) as TResult)!;
 #else
-                        return ((await rep.Content.ReadAsByteArrayAsync(cancellationToken)) as TResult)!;
+                        return ((await rep.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false)) as TResult)!;
 #endif
                     }
                     finally
@@ -351,8 +373,20 @@ sec-ch-ua-form-factors:
                 }
                 if (typeof(TResult).Equals(typeStream))//not dispose rep
                 {
-                    Stream stream = await rep.Content.ReadAsStreamAsync();
-                    return new HttpResponseStreamWrapper(rep, stream) as TResult;
+                    try
+                    {
+#if NETFRAMEWORK || NETSTANDARD
+                        Stream stream = await rep.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#else
+                        Stream stream = await rep.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+#endif
+                        return (new HttpResponseStreamWrapper(rep, stream) as TResult)!;
+                    }
+                    catch
+                    {
+                        rep.Dispose();
+                        throw;
+                    }
                 }
             }
 
