@@ -1,8 +1,5 @@
-workflow: GitFlow/v1
 deployment-mode: ManualDeployment
 tag-prefix: 'v'
-semantic-version-format: Loose
-assembly-versioning-scheme: MajorMinorPatch
 branches:
   master:
     regex: ^master$

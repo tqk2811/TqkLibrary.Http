@@ -1,0 +1,38 @@
+# git-cliff configuration -- https://git-cliff.org/docs/configuration
+# Release notes for one tag: CI runs `git-cliff <previous tag>..<tag>`.
+# Version = the tag itself (vM.N.P), see GitVersion.yml and src/ProjectBuildProperties.targets.
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}\
+- {% if commit.scope %}**({{ commit.scope }})** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %} [**breaking**]{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug fixes" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^revert", group = "Revert" },
+    { message = "^docs", skip = true },
+    { message = "^test", skip = true },
+    { message = "^build", skip = true },
+    { message = "^ci", skip = true },
+    { message = "^style", skip = true },
+    { message = "^chore", skip = true },
+    { message = ".*", skip = true },
+]
+filter_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+sort_commits = "oldest"

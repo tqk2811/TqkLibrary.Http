@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Tests do not need a real version: skip GitVersion (it fails on branches without a full SemVer tag).
+      - name: Test
+        working-directory: src
+        run: >
+          dotnet test TqkLibrary.Http.sln -c Release
+          -p:DisableGitVersionTask=true -p:Version=0.0.0
+          --logger "trx;LogFileName=test-results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory ../TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
