@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-	<Import Project="..\ProjectBuildProperties.targets" />
-	
-	<ItemGroup>
-	  <ProjectReference Include="..\TqkLibrary.Http\TqkLibrary.Http.csproj" />
-	</ItemGroup>
-
-</Project>

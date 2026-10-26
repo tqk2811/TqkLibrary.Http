@@ -17,16 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Captcha\TqkLibrary.Http.Api.Captcha.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.CloudStorage.Dropbox\TqkLibrary.Http.Api.CloudStorage.Dropbox.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.CloudStorage.GoogleDrive\TqkLibrary.Http.Api.CloudStorage.GoogleDrive.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.CloudStorage.OneDrive\TqkLibrary.Http.Api.CloudStorage.OneDrive.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.GoogleDocs\TqkLibrary.Http.Api.GoogleDocs.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Mail.OutlookGraphApi\TqkLibrary.Http.Api.Mail.OutlookGraphApi.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Mail\TqkLibrary.Http.Api.Mail.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Other\TqkLibrary.Http.Api.Other.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Phone\TqkLibrary.Http.Api.Phone.csproj" />
-    <ProjectReference Include="..\TqkLibrary.Http.Api.Proxy\TqkLibrary.Http.Api.Proxy.csproj" />
     <ProjectReference Include="..\TqkLibrary.Http\TqkLibrary.Http.csproj" />
   </ItemGroup>
 
