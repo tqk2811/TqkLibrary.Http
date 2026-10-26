@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using TqkLibrary.Http.Json;
 using System;
 using System.Net;
 using System.Net.Http;
@@ -30,7 +31,7 @@ namespace TqkLibrary.Http
         static JsonSerializerSettings CreateDefaultJsonSerializerSettings() => new JsonSerializerSettings()
         {
             NullValueHandling = NullValueHandling.Ignore,
-            ContractResolver = new MyContractResolver(),
+            ContractResolver = new CamelCaseIgnoreEmptyStringContractResolver(),
 #if DEBUG
             MissingMemberHandling = MissingMemberHandling.Error,
 #endif
