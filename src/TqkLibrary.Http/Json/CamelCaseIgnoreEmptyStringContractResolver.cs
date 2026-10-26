@@ -22,7 +22,7 @@ namespace TqkLibrary.Http.Json
             {
                 prop.ShouldSerialize = obj =>
                 {
-                    string val = (string)prop.ValueProvider.GetValue(obj);
+                    string? val = prop.ValueProvider?.GetValue(obj) as string;
                     return !string.IsNullOrEmpty(val);
                 };
             }
