@@ -41,6 +41,10 @@ jobs:
           git fetch origin master
           git merge-base --is-ancestor $env:GITHUB_SHA origin/master
           if ($LASTEXITCODE -ne 0) { Write-Error "Tag $env:TAG is not on master"; exit 1 }
+          # GitVersion fails on a detached HEAD ("No base versions determined"), even on a tagged commit.
+          # Put a local 'master' on the tagged commit so the master branch config applies.
+          git checkout -B master $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Pack
         shell: pwsh
