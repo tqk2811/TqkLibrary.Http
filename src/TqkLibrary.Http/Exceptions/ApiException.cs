@@ -4,8 +4,9 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using TqkLibrary.Http.Enums;
 
-namespace TqkLibrary.Http
+namespace TqkLibrary.Http.Exceptions
 {
     /// <summary>
     /// An error returned by an API, carrying enough request/response context that logs and the debugger

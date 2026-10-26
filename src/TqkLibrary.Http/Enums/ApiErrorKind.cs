@@ -1,4 +1,4 @@
-namespace TqkLibrary.Http
+namespace TqkLibrary.Http.Enums
 {
     /// <summary>
     /// Why an <see cref="ApiException"/> was thrown.

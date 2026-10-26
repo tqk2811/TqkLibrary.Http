@@ -9,6 +9,9 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TqkLibrary.Http.Enums;
+using TqkLibrary.Http.Exceptions;
+using TqkLibrary.Http.Streams;
 
 namespace TqkLibrary.Http
 {

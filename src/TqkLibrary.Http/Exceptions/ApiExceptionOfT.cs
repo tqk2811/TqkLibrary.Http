@@ -3,7 +3,7 @@ using System;
 using System.Net.Http;
 using System.Text;
 
-namespace TqkLibrary.Http
+namespace TqkLibrary.Http.Exceptions
 {
     /// <summary>
     /// An <see cref="ApiException"/> carrying the error body deserialized into <typeparamref name="T"/>.

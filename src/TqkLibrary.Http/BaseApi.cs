@@ -17,43 +17,25 @@ namespace TqkLibrary.Http
         /// </summary>
         public readonly string? ApiKey;
 
-        [Obsolete("use _httpClient instead")]
-        internal protected readonly HttpClient httpClient;
         /// <summary>
-        /// 
+        ///
         /// </summary>
         internal protected readonly HttpClient _httpClient;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
-        internal protected JsonSerializerSettings? DefaultJsonSerializerSettings { get; set; } = NetSingleton.JsonSerializerSettings;
-        /// <summary>
-        /// Dùng handler chung của cả tiến trình (<see cref="NetSingleton.HttpClientHandler"/>).
-        /// </summary>
-        /// <remarks>
-        /// Handler đó là MỘT instance cho cả tiến trình, nên mọi đối tượng dựng qua constructor này
-        /// chia nhau cùng một handler. <see cref="HttpClient"/> thì riêng từng đối tượng, nên
-        /// <c>DefaultRequestHeaders</c> (ví dụ bearer token) không rò sang đối tượng khác — nhưng
-        /// thứ gì nằm TRONG handler thì có. Cookie đã được tắt sẵn vì lý do đó. Cần cookie riêng
-        /// từng phiên thì dùng constructor nhận <see cref="HttpMessageHandler"/> và bọc
-        /// <see cref="HttpClientHandles.CookieHandler"/>.
-        /// </remarks>
-        protected BaseApi()
+        internal protected JsonSerializerSettings? DefaultJsonSerializerSettings { get; set; } = CreateDefaultJsonSerializerSettings();
+
+        static JsonSerializerSettings CreateDefaultJsonSerializerSettings() => new JsonSerializerSettings()
         {
-            this._httpClient = new HttpClient(NetSingleton.HttpClientHandler, false);
-            this.httpClient = this._httpClient;
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="apiKey"></param>
-        /// <exception cref="ArgumentNullException"></exception>
-        protected BaseApi(string apiKey) : this()
-        {
-            if (string.IsNullOrEmpty(apiKey)) throw new ArgumentNullException(nameof(apiKey));
-            this.ApiKey = apiKey;
-        }
+            NullValueHandling = NullValueHandling.Ignore,
+            ContractResolver = new MyContractResolver(),
+#if DEBUG
+            MissingMemberHandling = MissingMemberHandling.Error,
+#endif
+        };
+
         /// <summary>
         /// 
         /// </summary>
@@ -65,7 +47,6 @@ namespace TqkLibrary.Http
         {
             if (string.IsNullOrWhiteSpace(apiKey)) throw new ArgumentNullException(nameof(apiKey));
             this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
-            this.httpClient = this._httpClient;
             this.ApiKey = apiKey;
         }
         /// <summary>
@@ -77,19 +58,16 @@ namespace TqkLibrary.Http
         protected BaseApi(HttpMessageHandler httpMessageHandler, bool disposeHandler = false)
         {
             this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
-            this.httpClient = this._httpClient;
         }
 
         protected BaseApi(string apiKey, HttpClient httpClient)
         {
             this.ApiKey = apiKey;
             this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            this.httpClient = this._httpClient;
         }
         protected BaseApi(HttpClient httpClient)
         {
             this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            this.httpClient = this._httpClient;
         }
 
         /// <summary>

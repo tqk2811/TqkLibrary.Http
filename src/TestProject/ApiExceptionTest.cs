@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using TqkLibrary.Http;
+using TqkLibrary.Http.Enums;
+using TqkLibrary.Http.Exceptions;
 
 namespace TestProject
 {
