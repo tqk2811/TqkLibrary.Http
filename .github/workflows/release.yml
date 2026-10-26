@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag vM.N.P (on a commit of master) -> test, pack M.N.P, GitHub Release with git-cliff notes,
-# push nuget.org only when the NUGET_KEY secret exists.
+# push nuget.org only when the NUGETKEY secret exists.
 #   git tag v1.2.0 && git push origin v1.2.0
 
 on:
@@ -23,7 +23,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: windows-latest
     env:
-      NUGET_KEY: ${{ secrets.NUGET_KEY }}
+      NUGET_KEY: ${{ secrets.NUGETKEY }}
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ github.ref_name }}
     steps:
