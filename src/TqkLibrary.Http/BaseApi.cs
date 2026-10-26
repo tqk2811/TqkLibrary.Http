@@ -13,10 +13,6 @@ namespace TqkLibrary.Http
     public abstract class BaseApi : IDisposable
     {
         internal protected ILogger? _logger;
-        /// <summary>
-        /// 
-        /// </summary>
-        public readonly string? ApiKey;
 
         /// <summary>
         ///
@@ -31,19 +27,6 @@ namespace TqkLibrary.Http
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="apiKey"></param>
-        /// <param name="httpMessageHandler"></param>
-        /// <param name="disposeHandler"></param>
-        /// <exception cref="ArgumentNullException"></exception>
-        protected BaseApi(string apiKey, HttpMessageHandler httpMessageHandler, bool disposeHandler = false)
-        {
-            if (string.IsNullOrWhiteSpace(apiKey)) throw new ArgumentNullException(nameof(apiKey));
-            this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
-            this.ApiKey = apiKey;
-        }
-        /// <summary>
-        /// 
-        /// </summary>
         /// <param name="httpMessageHandler"></param>
         /// <param name="disposeHandler"></param>
         /// <exception cref="ArgumentNullException"></exception>
@@ -52,11 +35,6 @@ namespace TqkLibrary.Http
             this._httpClient = new HttpClient(httpMessageHandler ?? throw new ArgumentNullException(nameof(httpMessageHandler)), disposeHandler);
         }
 
-        protected BaseApi(string apiKey, HttpClient httpClient)
-        {
-            this.ApiKey = apiKey;
-            this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        }
         protected BaseApi(HttpClient httpClient)
         {
             this._httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -115,22 +93,6 @@ namespace TqkLibrary.Http
         protected internal virtual Task OnAfterRequestAsync(HttpResponseMessage httpResponseMessage)
         {
             return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
-        public override string? ToString()
-        {
-            if (string.IsNullOrWhiteSpace(ApiKey))
-            {
-                return base.ToString();
-            }
-            else
-            {
-                return $"{this.GetType().Name}({ApiKey})";
-            }
         }
     }
 }
