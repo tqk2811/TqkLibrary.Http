@@ -62,8 +62,10 @@ jobs:
         shell: pwsh
         run: |
           $prev = git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" "$env:TAG^"
-          $range = if ($LASTEXITCODE -eq 0 -and $prev) { "$prev..$env:TAG" } else { $env:TAG }
-          npx -y git-cliff@2 --config cliff.toml $range -o RELEASE_NOTES.md
+          # First release has no previous tag: no range = whole history up to HEAD (the tagged commit).
+          # A bare tag is not a valid git-cliff range ("unable to parse OID").
+          $range = if ($LASTEXITCODE -eq 0 -and $prev) { @("$prev..$env:TAG") } else { @() }
+          npx -y git-cliff@2 --config cliff.toml --tag $env:TAG @range -o RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: GitHub Release
