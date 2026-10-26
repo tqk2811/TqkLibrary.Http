@@ -289,6 +289,10 @@ sec-ch-ua-form-factors:
                 if (httpRequestMessage.Headers.Accept.Count == 0 && _httpClient.DefaultRequestHeaders.Accept.Count == 0)
                     httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
+                var bearer = _baseApi.Bearer;
+                if (bearer is not null && httpRequestMessage.Headers.Authorization is null)
+                    httpRequestMessage.Headers.Authorization = bearer;
+
                 await _baseApi.OnBeforeRequestAsync(httpRequestMessage).ConfigureAwait(false);
 
                 HttpResponseMessage httpResponseMessage = await _httpClient
