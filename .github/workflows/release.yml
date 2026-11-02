@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag vM.N.P (on a commit of master) -> test, pack M.N.P, GitHub Release with git-cliff notes,
-# push nuget.org only when the NUGETKEY secret exists.
+# push nuget.org with NuGet Trusted Publishing (OIDC, no API key secret).
 #   git tag v1.2.0 && git push origin v1.2.0
 
 on:
@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write             # NuGet/login exchanges the OIDC token for a short-lived API key
 
 jobs:
   test:
@@ -23,7 +24,6 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: windows-latest
     env:
-      NUGET_KEY: ${{ secrets.NUGETKEY }}
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ github.ref_name }}
     steps:
@@ -81,11 +81,20 @@ jobs:
           gh release upload $env:TAG (Get-ChildItem artifacts -Filter *.nupkg).FullName --clobber
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      # NuGet Trusted Publishing: needs a trusted publishing policy on nuget.org (owner tqk2811,
+      # repo TqkLibrary.Http, workflow release.yml). 'user' is the nuget.org profile name, not an email.
+      - name: NuGet login (OIDC)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: tqk2811
+
       - name: Push nuget.org
-        if: env.NUGET_KEY != ''
         shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           foreach ($p in Get-ChildItem artifacts -Filter *.nupkg) {
-            dotnet nuget push $p.FullName --api-key $env:NUGET_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            dotnet nuget push $p.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { Write-Error "Push failed: $($p.Name)"; exit 1 }
           }
