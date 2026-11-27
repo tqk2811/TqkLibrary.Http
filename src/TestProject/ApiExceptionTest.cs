@@ -173,6 +173,77 @@ namespace TestProject
             Assert.IsNotNull(exception.InnerException);
         }
 
+        const string _secret = "sk-secret-123456";
+        const string _secretBody = "{\"error\":\"" + _secret + "\",\"count\":\"" + _secret + "\"}";
+
+        [TestMethod]
+        public async Task Execute_SensitiveSuccessBodyBadJson_DoesNotLeakBody()
+        {
+            using FakeApi api = new FakeApi(HttpStatusCode.OK, _secretBody, "application/json");
+
+            ApiException exception = await Assert.ThrowsExceptionAsync<ApiException<ErrorBody>>(
+                () => api.Build().WithUrlGet(_url).WithSensitiveSuccessBody().ExecuteAsync<CountResult, ErrorBody>());
+
+            Assert.IsTrue(exception.IsBodySensitive);
+            Assert.AreEqual(ApiErrorKind.DeserializeFailed, exception.Kind);
+            Assert.AreEqual(_secretBody, exception.RawBody, "RawBody stays available to the caller");
+            AssertNoSecret(exception.Message, "Message");
+            AssertNoSecret(exception.ToString(), "ToString");
+            AssertNoSecret(DebuggerDisplayOf(exception), "DebuggerDisplay");
+            foreach (System.Collections.DictionaryEntry entry in exception.Data)
+                AssertNoSecret(entry.Value?.ToString(), "Data[" + entry.Key + "]");
+            StringAssert.Contains(exception.Message, "sensitive");
+            StringAssert.Contains(exception.Message, _secretBody.Length.ToString());
+            Assert.IsNotNull(exception.InnerException, "A summary of the deserialization error must be kept");
+            AssertNoSecret(exception.InnerException!.Message, "InnerException.Message");
+            StringAssert.Contains(exception.InnerException.Message, "count");
+        }
+
+        [TestMethod]
+        public async Task Execute_SensitiveFlagOnErrorStatus_StillPrintsBody()
+        {
+            using FakeApi api = new FakeApi(HttpStatusCode.BadRequest, _secretBody, "application/json");
+
+            ApiException exception = await Assert.ThrowsExceptionAsync<ApiException<ErrorBody>>(
+                () => api.Build().WithUrlGet(_url).WithSensitiveSuccessBody().ExecuteAsync<CountResult, ErrorBody>());
+
+            Assert.IsFalse(exception.IsBodySensitive);
+            StringAssert.Contains(exception.Message, _secret);
+            StringAssert.Contains(exception.ToString(), _secret);
+            Assert.AreEqual(_secretBody, exception.Data[nameof(ApiException.RawBody)]);
+        }
+
+        [TestMethod]
+        public async Task Execute_SuccessBodyBadJsonWithoutFlag_PrintsBodyAsBefore()
+        {
+            using FakeApi api = new FakeApi(HttpStatusCode.OK, _secretBody, "application/json");
+
+            ApiException exception = await Assert.ThrowsExceptionAsync<ApiException<ErrorBody>>(
+                () => api.Build().WithUrlGet(_url).ExecuteAsync<CountResult, ErrorBody>());
+
+            Assert.IsFalse(exception.IsBodySensitive);
+            StringAssert.Contains(exception.Message, _secret);
+            StringAssert.Contains(exception.ToString(), _secret);
+            Assert.AreEqual(_secretBody, exception.Data[nameof(ApiException.RawBody)]);
+            Assert.IsInstanceOfType(exception.InnerException, typeof(Newtonsoft.Json.JsonException));
+        }
+
+        static void AssertNoSecret(string? text, string where)
+        {
+            if (text is null) return;
+            Assert.IsFalse(text.Contains(_secret), where + " leaks the secret: " + text);
+        }
+
+        static string DebuggerDisplayOf(ApiException exception)
+            => (string)typeof(ApiException)
+                .GetProperty("DebuggerDisplay", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(exception)!;
+
+        public class CountResult
+        {
+            public int Count { get; set; }
+        }
+
         static HttpResponseMessage CreateResponse(HttpStatusCode statusCode, string content, string contentType)
             => new HttpResponseMessage(statusCode)
             {

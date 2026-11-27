@@ -110,6 +110,9 @@ namespace TqkLibrary.Http.Exceptions
         /// <summary>
         /// The raw, undeserialized body. Always kept even when deserialization failed, since it is usually
         /// the only clue left.
+        /// <para>
+        /// When <see cref="IsBodySensitive"/> is true this holds a secret: do not log it.
+        /// </para>
         /// </summary>
         public string? RawBody { get; init; }
 
@@ -128,6 +131,14 @@ namespace TqkLibrary.Http.Exceptions
         /// Why this exception was thrown.
         /// </summary>
         public ApiErrorKind Kind { get; init; } = ApiErrorKind.HttpStatus;
+
+        /// <summary>
+        /// The body is a secret (a 2xx body of a call marked with <see cref="RequestBuilder.WithSensitiveSuccessBody"/>).
+        /// <see cref="Message"/>, <see cref="ToString"/>, <see cref="Data"/> and the debugger display then
+        /// print only the body length, never its content. <see cref="RawBody"/> still holds the value for the
+        /// caller to handle: do not log it.
+        /// </summary>
+        public bool IsBodySensitive { get; init; }
 
         /// <summary>
         /// The deserialized body, readable without knowing the type argument, for shared logging code that
@@ -245,7 +256,8 @@ namespace TqkLibrary.Http.Exceptions
             if (BodyLength > 0)
             {
                 stringBuilder.Append(", body: ");
-                if (IsBodyPrintable(MaxBodyLengthInMessage)) stringBuilder.Append(SingleLine(RawBody!));
+                if (IsBodySensitive) stringBuilder.Append(BodySummary).Append(" (").Append(SensitiveOmitReason).Append(')');
+                else if (IsBodyPrintable(MaxBodyLengthInMessage)) stringBuilder.Append(SingleLine(RawBody!));
                 else stringBuilder.Append(BodySummary);
             }
             return stringBuilder.ToString();
@@ -280,13 +292,17 @@ namespace TqkLibrary.Http.Exceptions
             return stringBuilder.ToString().TrimEnd();
         }
 
+        const string SensitiveOmitReason = "body omitted: sensitive";
+
         bool IsBodyPrintable(int maxLength)
-            => BodyLength > 0 && IsBodyText && BodyLength <= maxLength;
+            => BodyLength > 0 && !IsBodySensitive && IsBodyText && BodyLength <= maxLength;
 
         string BodyOmitReason(int maxLength)
-            => IsBodyText
-                ? $"body omitted: {BodyLength} chars exceeds {maxLength}"
-                : "body omitted: not text";
+            => IsBodySensitive
+                ? SensitiveOmitReason
+                : IsBodyText
+                    ? $"body omitted: {BodyLength} chars exceeds {maxLength}"
+                    : "body omitted: not text";
 
         void FillData(IDictionary data)
         {
@@ -298,6 +314,7 @@ namespace TqkLibrary.Http.Exceptions
             SetIfAbsent(data, nameof(ContentLength), ContentLength);
             SetIfAbsent(data, nameof(BodyLength), BodyLength);
             SetIfAbsent(data, nameof(Kind), Kind.ToString());
+            if (IsBodySensitive) SetIfAbsent(data, nameof(IsBodySensitive), true);
             if (IsBodyPrintable(MaxBodyLengthInDetail)) SetIfAbsent(data, nameof(RawBody), RawBody);
         }
 

@@ -64,6 +64,8 @@ namespace TqkLibrary.Http.Exceptions
         protected override void AppendDetail(StringBuilder stringBuilder)
         {
             if (Body is null) return;
+            // Deserialized from a secret body: printing it would leak the very value RawBody hides.
+            if (IsBodySensitive) return;
             // When T is string, Body is RawBody: printing it twice only makes the log longer.
             if (Body is string text && string.Equals(text, RawBody, StringComparison.Ordinal)) return;
 

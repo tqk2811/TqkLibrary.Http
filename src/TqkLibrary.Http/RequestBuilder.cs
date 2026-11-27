@@ -328,6 +328,21 @@ sec-ch-ua-form-factors:
             return this;
         }
 
+        bool _isSuccessBodySensitive;
+        /// <summary>
+        /// Marks the body of a 2xx response of this call as secret (e.g. an endpoint that returns a freshly
+        /// issued token). If that body then fails to deserialize into TResult, the thrown <see cref="ApiException"/>
+        /// has <see cref="ApiException.IsBodySensitive"/> set: its Message, ToString, Data and debugger display
+        /// omit the body, and the Newtonsoft inner exception is replaced by a summary that keeps no value.
+        /// Error bodies (non 2xx) are still printed, they are needed for diagnosis.
+        /// </summary>
+        /// <returns></returns>
+        public RequestBuilder WithSensitiveSuccessBody()
+        {
+            _isSuccessBodySensitive = true;
+            return this;
+        }
+
         // Buffer the whole body inside SendAsync by default so HttpClient.Timeout also covers the download.
         // This used to be hardcoded to ResponseHeadersRead: SendAsync returned as soon as the headers arrived
         // and no timeout protected the body read afterwards -> a half-open connection (a proxy or the network
@@ -447,6 +462,8 @@ sec-ch-ua-form-factors:
             where TException : class
         {
             ApiErrorKind kind = deserializeError is null ? ApiErrorKind.HttpStatus : ApiErrorKind.DeserializeFailed;
+            bool isBodySensitive = _isSuccessBodySensitive && rep.IsSuccessStatusCode;
+            if (isBodySensitive && deserializeError is not null) deserializeError = RedactJsonError(deserializeError);
             Uri? requestUri = rep.RequestMessage?.RequestUri ?? _resolvedUri ?? _uri;
 
             if (typeof(TException).Equals(typeString))
@@ -456,21 +473,27 @@ sec-ch-ua-form-factors:
                     Kind = kind,
                     RequestMethod = _method,
                     RequestUri = requestUri,
+                    IsBodySensitive = isBodySensitive,
                 };
             }
 
             TException? body = null;
             Exception? innerException = deserializeError;
-            try
+            // A secret 2xx body is not an error body: parsing it into TException would only copy the secret
+            // into Body.
+            if (!isBodySensitive)
             {
-                body = JsonConvert.DeserializeObject<TException>(content!, _baseApi.DefaultJsonSerializerSettings);
-            }
-            catch (Exception ex)
-            {
-                // An error body that is not JSON (an HTML error page, a proxy notice) must NOT leak a raw
-                // JsonReaderException: callers catching ApiException would miss it and the stack trace would
-                // point at the wrong place. Keep it as InnerException, RawBody still carries the evidence.
-                innerException ??= ex;
+                try
+                {
+                    body = JsonConvert.DeserializeObject<TException>(content!, _baseApi.DefaultJsonSerializerSettings);
+                }
+                catch (Exception ex)
+                {
+                    // An error body that is not JSON (an HTML error page, a proxy notice) must NOT leak a raw
+                    // JsonReaderException: callers catching ApiException would miss it and the stack trace would
+                    // point at the wrong place. Keep it as InnerException, RawBody still carries the evidence.
+                    innerException ??= ex;
+                }
             }
 
             return new ApiException<TException>(rep, content, body, innerException)
@@ -478,7 +501,31 @@ sec-ch-ua-form-factors:
                 Kind = kind,
                 RequestMethod = _method,
                 RequestUri = requestUri,
+                IsBodySensitive = isBodySensitive,
             };
+        }
+
+        /// <summary>
+        /// Newtonsoft messages quote the offending value (e.g. <c>Could not convert string to integer: sk-...</c>,
+        /// <c>Error converting value "sk-..." to type ...</c>), so for a secret body only the exception type and
+        /// the position are kept; the original exception, and its own inner chain, are dropped.
+        /// </summary>
+        static Exception RedactJsonError(Exception error)
+        {
+            const string omitted = "message omitted: sensitive body";
+            switch (error)
+            {
+                case JsonReaderException reader:
+                    return new JsonReaderException(
+                        $"{error.GetType().FullName} ({omitted}). Path '{reader.Path}', line {reader.LineNumber}, position {reader.LinePosition}.",
+                        reader.Path ?? string.Empty, reader.LineNumber, reader.LinePosition, null);
+                case JsonSerializationException serialization:
+                    return new JsonSerializationException(
+                        $"{error.GetType().FullName} ({omitted}). Path '{serialization.Path}', line {serialization.LineNumber}, position {serialization.LinePosition}.",
+                        serialization.Path ?? string.Empty, serialization.LineNumber, serialization.LinePosition, null);
+                default:
+                    return new Exception($"{error.GetType().FullName} ({omitted}).");
+            }
         }
 
         /// <summary>
