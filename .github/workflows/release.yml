@@ -64,7 +64,9 @@ jobs:
           $prev = git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" "$env:TAG^"
           # First release has no previous tag: no range = whole history up to HEAD (the tagged commit).
           # A bare tag is not a valid git-cliff range ("unable to parse OID").
-          $range = if ($LASTEXITCODE -eq 0 -and $prev) { @("$prev..$env:TAG") } else { @() }
+          # Wrap the whole `if` in @(): a one-element array returned from `if` unrolls to a plain string, and
+          # splatting a string (@range) passes it character by character ("v 2 . 0 . 0 . . v 2 . 1 . 0").
+          $range = @(if ($LASTEXITCODE -eq 0 -and $prev) { "$prev..$env:TAG" })
           npx -y git-cliff@2 --config cliff.toml --tag $env:TAG @range -o RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
